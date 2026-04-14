@@ -3,7 +3,8 @@ import mongoose from "mongoose";
 export enum Role {
     USER = "user",
     AGENT = "agent",
-    ADMIN = "admin"
+    ADMIN = "admin",
+    SUPER_ADMIN = "super_admin"
 }
 
 export interface IUser extends mongoose.Document {
