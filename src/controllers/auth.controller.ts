@@ -33,7 +33,7 @@ export const register = async (req: Request, res: Response) => {
             password: hashedPassword,
             role: selectedRole,
             otp,
-            otpExpiry: new Date(Date.now() + 10 * 60 * 1000) // 10 min
+            otpExpiry: new Date(Date.now() + 10 * 60 * 1000) 
         });
 
         try {
