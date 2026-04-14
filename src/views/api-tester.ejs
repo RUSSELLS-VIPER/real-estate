@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Real Estate API Tester</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 24px auto;
+            padding: 0 16px;
+        }
+        h1 {
+            margin-bottom: 8px;
+        }
+        .hint {
+            margin-bottom: 16px;
+            color: #4b5563;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid #dbe2ea;
+            border-radius: 10px;
+            padding: 14px;
+        }
+        .card h3 {
+            margin: 0 0 12px;
+        }
+        label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 5px;
+            color: #4b5563;
+        }
+        input, select, button, textarea {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        textarea {
+            min-height: 110px;
+            resize: vertical;
+        }
+        button {
+            border: none;
+            cursor: pointer;
+            background: #0f766e;
+            color: #fff;
+            font-weight: 600;
+        }
+        button:hover {
+            background: #115e59;
+        }
+        .response {
+            margin-top: 16px;
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 10px;
+            padding: 14px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            min-height: 220px;
+        }
+        .token-box {
+            background: #fff;
+            border: 1px solid #dbe2ea;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 16px;
+        }
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Real Estate API Tester</h1>
+        <h2>Swagger Documentation <a href="http://localhost:5000/api-docs/">link</a></h2>
+       
+
+        <div class="token-box">
+            <div class="row">
+                <div>
+                    <label for="baseUrl">Base URL (without /api path)</label>
+                    <input id="baseUrl" value="<%= typeof baseUrl !== 'undefined' ? baseUrl : '' %>" placeholder="http://localhost:5000" />
+                </div>
+                <div>
+                    <label for="token">JWT Token</label>
+                    <input id="token" placeholder="Paste token or login to auto-fill" />
+                </div>
+            </div>
+            <button id="saveToken">Save Token</button>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>Register</h3>
+                <label>Name</label>
+                <input id="regName" value="Test User" />
+                <label>Email</label>
+                <input id="regEmail" value="test@example.com" />
+                <label>Password</label>
+                <input id="regPassword" type="password" value="123456" />
+                <label>Role</label>
+                <select id="regRole">
+                    <option value="user">user</option>
+                    <option value="agent">agent</option>
+                    <option value="admin">admin</option>
+                </select>
+                <button onclick="register()">POST /api/auth/register</button>
+            </div>
+
+            <div class="card">
+                <h3>Verify Email</h3>
+                <label>Email</label>
+                <input id="verifyEmail" value="test@example.com" />
+                <label>OTP</label>
+                <input id="verifyOtp" placeholder="Enter OTP from email" />
+                <button onclick="verifyEmail()">POST /api/auth/verify-email</button>
+            </div>
+
+            <div class="card">
+                <h3>Login</h3>
+                <label>Email</label>
+                <input id="loginEmail" value="test@example.com" />
+                <label>Password</label>
+                <input id="loginPassword" type="password" value="123456" />
+                <button onclick="login()">POST /api/auth/login</button>
+            </div>
+
+            <div class="card">
+                <h3>Create Property</h3>
+                <label>Title</label>
+                <input id="createTitle" value="2BHK Apartment" />
+                <label>Description</label>
+                <textarea id="createDescription">Near metro station, ready to move.</textarea>
+                <label>Price</label>
+                <input id="createPrice" value="7500000" />
+                <label>Address</label>
+                <input id="createAddress" value="Kolkata, India" />
+                <button onclick="createProperty()">POST /api/properties</button>
+            </div>
+
+            <div class="card">
+                <h3>Get Properties</h3>
+                <button onclick="getProperties()">GET /api/properties</button>
+                <label>Property ID</label>
+                <input id="propertyId" placeholder="Property id for get/update/delete" />
+                <button onclick="getPropertyById()">GET /api/properties/:id</button>
+            </div>
+
+            <div class="card">
+                <h3>Update Property</h3>
+                <label>Property ID</label>
+                <input id="updateId" placeholder="Property id" />
+                <label>Title (optional)</label>
+                <input id="updateTitle" />
+                <label>Description (optional)</label>
+                <textarea id="updateDescription"></textarea>
+                <label>Price (optional)</label>
+                <input id="updatePrice" />
+                <label>Address (optional)</label>
+                <input id="updateAddress" />
+                <button onclick="updateProperty()">PUT /api/properties/:id</button>
+            </div>
+
+            <div class="card">
+                <h3>Delete Property</h3>
+                <label>Property ID</label>
+                <input id="deleteId" placeholder="Property id" />
+                <button onclick="deleteProperty()">DELETE /api/properties/:id</button>
+            </div>
+        </div>
+
+        <pre id="response" class="response">Response will appear here...</pre>
+    </div>
+
+    <script>
+        const tokenInput = document.getElementById("token");
+        const baseUrlInput = document.getElementById("baseUrl");
+        const responseBox = document.getElementById("response");
+
+        if (!baseUrlInput.value) {
+            baseUrlInput.value = window.location.origin;
+        }
+
+        tokenInput.value = localStorage.getItem("api_tester_token") || "";
+
+        document.getElementById("saveToken").addEventListener("click", () => {
+            localStorage.setItem("api_tester_token", tokenInput.value.trim());
+            writeResponse({ message: "Token saved in localStorage" }, 200);
+        });
+
+        function apiUrl(path) {
+            return baseUrlInput.value.replace(/\/$/, "") + path;
+        }
+
+        function headers(authRequired = false) {
+            const h = { "Content-Type": "application/json" };
+            if (authRequired && tokenInput.value.trim()) {
+                h.Authorization = "Bearer " + tokenInput.value.trim();
+            }
+            return h;
+        }
+
+        async function sendRequest(path, method, body, authRequired = false) {
+            const options = {
+                method,
+                headers: headers(authRequired)
+            };
+            if (body) options.body = JSON.stringify(body);
+
+            const res = await fetch(apiUrl(path), options);
+            let data;
+            try {
+                data = await res.json();
+            } catch (_e) {
+                data = { raw: await res.text() };
+            }
+            writeResponse(data, res.status);
+            return { status: res.status, data };
+        }
+
+        function writeResponse(data, status) {
+            responseBox.textContent =
+                "Status: " + status + "\n\n" + JSON.stringify(data, null, 2);
+        }
+
+        async function register() {
+            await sendRequest("/api/auth/register", "POST", {
+                name: document.getElementById("regName").value,
+                email: document.getElementById("regEmail").value,
+                password: document.getElementById("regPassword").value,
+                role: document.getElementById("regRole").value
+            });
+        }
+
+        async function verifyEmail() {
+            await sendRequest("/api/auth/verify-email", "POST", {
+                email: document.getElementById("verifyEmail").value,
+                otp: document.getElementById("verifyOtp").value
+            });
+        }
+
+        async function login() {
+            const result = await sendRequest("/api/auth/login", "POST", {
+                email: document.getElementById("loginEmail").value,
+                password: document.getElementById("loginPassword").value
+            });
+            if (result.status === 200 && result.data && result.data.token) {
+                tokenInput.value = result.data.token;
+                localStorage.setItem("api_tester_token", result.data.token);
+            }
+        }
+
+        async function createProperty() {
+            await sendRequest("/api/properties", "POST", {
+                title: document.getElementById("createTitle").value,
+                description: document.getElementById("createDescription").value,
+                price: Number(document.getElementById("createPrice").value),
+                address: document.getElementById("createAddress").value
+            }, true);
+        }
+
+        async function getProperties() {
+            await sendRequest("/api/properties", "GET");
+        }
+
+        async function getPropertyById() {
+            const id = document.getElementById("propertyId").value;
+            await sendRequest("/api/properties/" + id, "GET");
+        }
+
+        async function updateProperty() {
+            const payload = {};
+            const title = document.getElementById("updateTitle").value;
+            const description = document.getElementById("updateDescription").value;
+            const price = document.getElementById("updatePrice").value;
+            const address = document.getElementById("updateAddress").value;
+
+            if (title) payload.title = title;
+            if (description) payload.description = description;
+            if (price) payload.price = Number(price);
+            if (address) payload.address = address;
+
+            const id = document.getElementById("updateId").value;
+            await sendRequest("/api/properties/" + id, "PUT", payload, true);
+        }
+
+        async function deleteProperty() {
+            const id = document.getElementById("deleteId").value;
+            await sendRequest("/api/properties/" + id, "DELETE", null, true);
+        }
+    </script>
+</body>
+</html>
