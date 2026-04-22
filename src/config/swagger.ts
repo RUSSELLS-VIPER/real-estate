@@ -13,7 +13,8 @@ export const swaggerSpec = {
     ],
     tags: [
         { name: "Auth", description: "Authentication endpoints" },
-        { name: "Property", description: "Property endpoints" }
+        { name: "Property", description: "Property endpoints" },
+        { name: "User", description: "User profile and Favorites" }
     ],
     components: {
         securitySchemes: {
@@ -52,6 +53,14 @@ export const swaggerSpec = {
                 properties: {
                     email: { type: "string", format: "email", example: "john@example.com" },
                     password: { type: "string", example: "123456" }
+                }
+            },
+            UpdateProfileRequest: {
+                type: "object",
+                properties: {
+                    name: { type: "string", example: "John Wick" },
+                    email: { type: "string", format: "email", example: "john@example.com" },
+                    profilePic: { type: "string", format: "binary", description: "Profile picture file" }
                 }
             },
             CreatePropertyRequest: {
@@ -229,7 +238,82 @@ export const swaggerSpec = {
                     "404": { description: "Property not found" },
                     "500": { description: "Server error" }
                 }
+            },
+            
+        },
+        "/api/users/profile/{id}": {
+            get: {
+                tags: ["User"],
+                summary: "Get user profile",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { 
+                        in: "path",
+                        name: "id",
+                        required: true,
+                        schema: { type: "string" } 
+                        }
+                    ],
+                responses: { 
+                    "200": { description: "User details" },
+                    "404": { description: "Not found" },
+                    "500": { description: "Server error" } }
             }
-        }
+        },
+        "/api/users/profile/update": {
+            put: {
+                tags: ["User"],
+                summary: "Update own profile (supports image upload)",
+                security: [{ bearerAuth: [] }],
+                requestBody: {
+                    content: {
+                        "multipart/form-data": {
+                            schema: { $ref: "#/components/schemas/UpdateProfileRequest" }
+                        }
+                    }
+                },
+                responses: { 
+                    "200": { description: "Updated" }, 
+                    "401": { description: "Unauthorized" },
+                    "404": { description: "User not found" },
+                    "500": { description: "Server error" }
+                 }
+            }
+        },
+        "/api/users/favorites/{propertyId}": {
+            post: {
+                tags: ["User"],
+                summary: "Toggle like/favorite on a property",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    { in: "path",
+                         name: "propertyId",
+                          required: true,
+                           schema: { type: "string" } }],
+                responses: { 
+                    "200": { description: "Toggle success" },
+                     "401": { description: "Unauthorized" },
+                    "404": { description: "Property not found" },
+                    "500": { description: "Server error" } }
+            }
+        },
+        "/api/users/favorites/my-list": {
+            get: {
+                tags: ["User"],
+                summary: "Get all properties liked by current user",
+                security: [{ bearerAuth: [] }],
+                responses: { 
+                    "200": { description: "List of liked properties" },
+                    "401": { description: "Unauthorized" },
+                    "500": { description: "Server error" }
+                 }
+            }
+        },
+
+
+
+
+
+
     }
 };

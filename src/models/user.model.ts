@@ -14,6 +14,10 @@ export interface IUser extends mongoose.Document {
     isVerified: boolean;
     otp?: string;
     otpExpiry?: Date;
+    profilePic?: {
+        data: Buffer;
+        contentType: string;
+    };
 }
 
 const userSchema = new mongoose.Schema<IUser>(
@@ -31,7 +35,11 @@ const userSchema = new mongoose.Schema<IUser>(
             default: false
         },
         otp: { type: String },
-        otpExpiry: { type: Date }
+        otpExpiry: { type: Date },
+        profilePic: {
+            data: { type: Buffer },
+            contentType: { type: String }
+        }
     },
     { timestamps: true }
 );
