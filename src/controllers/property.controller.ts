@@ -12,17 +12,28 @@ export const createProperty = async (req: AuthenticatedRequest, res: Response) =
 
         const { title, description, price, address } = req.body;
 
+        const imageFiles = req.files as Express.Multer.File[];
+        
+        // Map files to the schema format (Buffer + ContentType)
+        const images = imageFiles?.map(file => ({
+            data: file.buffer,
+            contentType: file.mimetype
+        })) || [];
+
+
         const property = await Property.create({
             title,
             description,
             price,
             address,
+            images,
             createdBy: new mongoose.Types.ObjectId(req.user.id)
         });
 
         return res.status(201).json({
             message: "Property created successfully",
-            property
+            property,
+            imageCount: property.images.length
         });
     } catch (error) {
         return res.status(500).json({ error });
@@ -77,11 +88,29 @@ export const updateProperty = async (req: AuthenticatedRequest, res: Response) =
         property.price = price ?? property.price;
         property.address = address ?? property.address;
 
+
+        if (req.files && (req.files as Express.Multer.File[]).length > 0) {
+            const imageFiles = req.files as Express.Multer.File[];
+            
+            // Map new files to the buffer format
+            const newImages = imageFiles.map(file => ({
+                data: file.buffer,
+                contentType: file.mimetype
+            }));
+
+            // OPTION A: Replace old images with new ones (standard for "Edit" forms)
+            property.images = newImages;
+            
+        }
+
+
+
         await property.save();
 
         return res.json({
             message: "Property updated successfully",
-            property
+            property,
+            imageCount: property.images.length
         });
     } catch (error) {
         return res.status(500).json({ error });

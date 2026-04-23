@@ -70,7 +70,15 @@ export const swaggerSpec = {
                     title: { type: "string", example: "2BHK Apartment" },
                     description: { type: "string", example: "Near metro station" },
                     price: { type: "number", example: 7500000 },
-                    address: { type: "string", example: "Kolkata, India" }
+                    address: { type: "string", example: "Kolkata, India" },
+                    images: {
+                            type: "array",
+                            items: {
+                                type: "string",
+                                format: "binary"
+                            },
+                            description: "Upload up to 5 images"
+                        }
                 }
             },
             UpdatePropertyRequest: {
@@ -79,7 +87,11 @@ export const swaggerSpec = {
                     title: { type: "string", example: "3BHK Apartment" },
                     description: { type: "string", example: "Renovated recently" },
                     price: { type: "number", example: 8200000 },
-                    address: { type: "string", example: "New Town, Kolkata" }
+                    address: { type: "string", example: "New Town, Kolkata" },
+                    images: {
+                            type: "array",
+                            items: { type: "string", format: "binary" }
+                        }
                 }
             }
         }
@@ -160,7 +172,7 @@ export const swaggerSpec = {
                 requestBody: {
                     required: true,
                     content: {
-                        "application/json": {
+                        "multipart/form-data": {
                             schema: { $ref: "#/components/schemas/CreatePropertyRequest" }
                         }
                     }
@@ -206,7 +218,7 @@ export const swaggerSpec = {
                 requestBody: {
                     required: true,
                     content: {
-                        "application/json": {
+                        "multipart/form-data": {
                             schema: { $ref: "#/components/schemas/UpdatePropertyRequest" }
                         }
                     }
