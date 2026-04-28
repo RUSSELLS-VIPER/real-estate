@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { Role } from "../models/user.model";
 import { JwtPayloadData } from "../types";
+import { logError } from "../utils/error";
 
 export interface AuthenticatedRequest extends Request {
     user?: JwtPayloadData;
@@ -19,11 +20,17 @@ export const authenticate = (
 
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader) {
         return res.status(401).json({ message: "Unauthorized: token missing" });
     }
 
-    const token = authHeader.split(" ")[1];
+    const token = authHeader.startsWith("Bearer ")
+        ? authHeader.split(" ")[1]
+        : authHeader.trim();
+
+    if (!token) {
+        return res.status(401).json({ message: "Unauthorized: token missing" });
+    }
 
     try {
         const decoded = jwt.verify(token, jwtSecret) as JwtPayloadData;
@@ -32,7 +39,8 @@ export const authenticate = (
             role: decoded.role
         };
         next();
-    } catch (_error) {
+    } catch (error) {
+        logError("authenticate", error);
         return res.status(401).json({ message: "Unauthorized: invalid token" });
     }
 };

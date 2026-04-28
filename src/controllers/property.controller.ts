@@ -4,18 +4,66 @@ import Property from "../models/property.model";
 import { Role } from "../models/user.model";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
+const parseError = (error: unknown) => {
+    if (error instanceof mongoose.Error.ValidationError) {
+        return {
+            message: "Validation failed",
+            details: Object.values(error.errors).map((e) => e.message)
+        };
+    }
+    if (error instanceof mongoose.Error.CastError) {
+        return {
+            message: `Invalid value for ${error.path}`,
+            details: error.message
+        };
+    }
+    if (error instanceof Error) {
+        return { message: error.message };
+    }
+    return { message: "Internal server error" };
+};
+
+const toSafePropertyResponse = (property: any) => {
+    const obj = property.toObject ? property.toObject() : property;
+    const hasImageBuffer = Boolean(obj?.image?.data && Buffer.isBuffer(obj.image.data));
+
+    return {
+        ...obj,
+        image: hasImageBuffer
+            ? `data:${obj.image.contentType};base64,${obj.image.data.toString("base64")}`
+            : null,
+        likesCount: Array.isArray(obj?.likes) ? obj.likes.length : 0
+    };
+};
+
 export const createProperty = async (req: AuthenticatedRequest, res: Response) => {
     try {
         if (!req.user) {
             return res.status(401).json({ message: "Unauthorized" });
         }
 
+        if (!mongoose.Types.ObjectId.isValid(req.user.id)) {
+            return res.status(400).json({ message: "Invalid user id in token" });
+        }
+
+        // Some clients send empty image text field in multipart form-data.
+        if (req.body.image === "") {
+            delete req.body.image;
+        }
+
         const { title, description, price, address } = req.body;
+        const parsedPrice = Number(price);
+
+        if (!title || !description || !address || Number.isNaN(parsedPrice)) {
+            return res.status(400).json({
+                message: "title, description, address and valid numeric price are required"
+            });
+        }
 
         const property = await Property.create({
             title,
             description,
-            price,
+            price: parsedPrice,
             address,
             createdBy: new mongoose.Types.ObjectId(req.user.id),
             image: req.file
@@ -31,24 +79,18 @@ export const createProperty = async (req: AuthenticatedRequest, res: Response) =
             property
         });
     } catch (error) {
-        return res.status(500).json({ error });
+        console.error("createProperty error:", error);
+        return res.status(500).json(parseError(error));
     }
 };
 
 export const getProperties = async (_req: AuthenticatedRequest, res: Response) => {
     try {
         const properties = await Property.find().populate("createdBy", "name email role");
-        return res.json(
-            properties.map((property) => ({
-                ...property.toObject(),
-                image: property.image
-                    ? `data:${property.image.contentType};base64,${property.image.data.toString("base64")}`
-                    : null,
-                likesCount: property.likes.length
-            }))
-        );
+        return res.json(properties.map((property) => toSafePropertyResponse(property)));
     } catch (error) {
-        return res.status(500).json({ error });
+        console.error("getProperties error:", error);
+        return res.status(500).json(parseError(error));
     }
 };
 
@@ -60,15 +102,10 @@ export const getPropertyById = async (req: AuthenticatedRequest, res: Response) 
             return res.status(404).json({ message: "Property not found" });
         }
 
-        return res.json({
-            ...property.toObject(),
-            image: property.image
-                ? `data:${property.image.contentType};base64,${property.image.data.toString("base64")}`
-                : null,
-            likesCount: property.likes.length
-        });
+        return res.json(toSafePropertyResponse(property));
     } catch (error) {
-        return res.status(500).json({ error });
+        console.error("getPropertyById error:", error);
+        return res.status(500).json(parseError(error));
     }
 };
 
@@ -84,7 +121,7 @@ export const updateProperty = async (req: AuthenticatedRequest, res: Response) =
         }
 
         const isAdmin = req.user.role === Role.ADMIN;
-        const isOwner = property.createdBy.toString() === req.user.id;
+        const isOwner = property.createdBy && property.createdBy.toString() === req.user.id;
 
         if (!isAdmin && !isOwner) {
             return res.status(403).json({ message: "Forbidden: you can only update your own properties" });
@@ -94,7 +131,13 @@ export const updateProperty = async (req: AuthenticatedRequest, res: Response) =
 
         property.title = title ?? property.title;
         property.description = description ?? property.description;
-        property.price = price ?? property.price;
+        if (price !== undefined) {
+            const parsedPrice = Number(price);
+            if (Number.isNaN(parsedPrice)) {
+                return res.status(400).json({ message: "price must be a valid number" });
+            }
+            property.price = parsedPrice;
+        }
         property.address = address ?? property.address;
         if (req.file) {
             property.image = {
@@ -110,7 +153,8 @@ export const updateProperty = async (req: AuthenticatedRequest, res: Response) =
             property
         });
     } catch (error) {
-        return res.status(500).json({ error });
+        console.error("updateProperty error:", error);
+        return res.status(500).json(parseError(error));
     }
 };
 
@@ -126,7 +170,7 @@ export const deleteProperty = async (req: AuthenticatedRequest, res: Response) =
         }
 
         const isAdmin = req.user.role === Role.ADMIN;
-        const isOwner = property.createdBy.toString() === req.user.id;
+        const isOwner = property.createdBy && property.createdBy.toString() === req.user.id;
 
         if (!isAdmin && !isOwner) {
             return res.status(403).json({ message: "Forbidden: you can only delete your own properties" });
@@ -136,7 +180,8 @@ export const deleteProperty = async (req: AuthenticatedRequest, res: Response) =
 
         return res.json({ message: "Property deleted successfully" });
     } catch (error) {
-        return res.status(500).json({ error });
+        console.error("deleteProperty error:", error);
+        return res.status(500).json(parseError(error));
     }
 };
 
@@ -152,15 +197,17 @@ export const togglePropertyLike = async (req: AuthenticatedRequest, res: Respons
         }
 
         const userId = new mongoose.Types.ObjectId(req.user.id);
-        const existingLikeIndex = property.likes.findIndex((id) => id.toString() === req.user!.id);
+        const likes = Array.isArray(property.likes) ? property.likes : [];
+        const existingLikeIndex = likes.findIndex((id) => id && id.toString() === req.user!.id);
 
         let liked = false;
         if (existingLikeIndex >= 0) {
-            property.likes.splice(existingLikeIndex, 1);
+            likes.splice(existingLikeIndex, 1);
         } else {
-            property.likes.push(userId);
+            likes.push(userId);
             liked = true;
         }
+        property.likes = likes;
 
         await property.save();
 
@@ -170,6 +217,7 @@ export const togglePropertyLike = async (req: AuthenticatedRequest, res: Respons
             likesCount: property.likes.length
         });
     } catch (error) {
-        return res.status(500).json({ error });
+        console.error("togglePropertyLike error:", error);
+        return res.status(500).json(parseError(error));
     }
 };

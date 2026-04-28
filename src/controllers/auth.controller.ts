@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import User, { Role } from "../models/user.model";
 import { generateOTP } from "../utils/generateOTP";
 import { sendEmail } from "../utils/sendEmail";
+import { logError, toErrorResponse } from "../utils/error";
 
 const allowedRoles = Object.values(Role);
 
@@ -52,7 +53,8 @@ export const register = async (req: Request, res: Response) => {
         });
 
     } catch (error) {
-        res.status(500).json({ error });
+        logError("register", error);
+        res.status(500).json(toErrorResponse(error));
     }
 };
 
@@ -78,7 +80,8 @@ export const verifyEmail = async (req: Request, res: Response) => {
         res.json({ message: "Email verified successfully" });
 
     } catch (error) {
-        res.status(500).json({ error });
+        logError("verifyEmail", error);
+        res.status(500).json(toErrorResponse(error));
     }
 };
 
@@ -121,7 +124,7 @@ export const login = async (req: Request, res: Response) => {
         });
 
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Internal Server Error";
-        res.status(500).json({ message });
+        logError("login", error);
+        res.status(500).json(toErrorResponse(error));
     }
 };
