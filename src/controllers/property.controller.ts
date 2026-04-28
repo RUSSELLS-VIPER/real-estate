@@ -17,7 +17,13 @@ export const createProperty = async (req: AuthenticatedRequest, res: Response) =
             description,
             price,
             address,
-            createdBy: new mongoose.Types.ObjectId(req.user.id)
+            createdBy: new mongoose.Types.ObjectId(req.user.id),
+            image: req.file
+                ? {
+                      data: req.file.buffer,
+                      contentType: req.file.mimetype
+                  }
+                : undefined
         });
 
         return res.status(201).json({
@@ -32,7 +38,15 @@ export const createProperty = async (req: AuthenticatedRequest, res: Response) =
 export const getProperties = async (_req: AuthenticatedRequest, res: Response) => {
     try {
         const properties = await Property.find().populate("createdBy", "name email role");
-        return res.json(properties);
+        return res.json(
+            properties.map((property) => ({
+                ...property.toObject(),
+                image: property.image
+                    ? `data:${property.image.contentType};base64,${property.image.data.toString("base64")}`
+                    : null,
+                likesCount: property.likes.length
+            }))
+        );
     } catch (error) {
         return res.status(500).json({ error });
     }
@@ -46,7 +60,13 @@ export const getPropertyById = async (req: AuthenticatedRequest, res: Response) 
             return res.status(404).json({ message: "Property not found" });
         }
 
-        return res.json(property);
+        return res.json({
+            ...property.toObject(),
+            image: property.image
+                ? `data:${property.image.contentType};base64,${property.image.data.toString("base64")}`
+                : null,
+            likesCount: property.likes.length
+        });
     } catch (error) {
         return res.status(500).json({ error });
     }
@@ -76,6 +96,12 @@ export const updateProperty = async (req: AuthenticatedRequest, res: Response) =
         property.description = description ?? property.description;
         property.price = price ?? property.price;
         property.address = address ?? property.address;
+        if (req.file) {
+            property.image = {
+                data: req.file.buffer,
+                contentType: req.file.mimetype
+            };
+        }
 
         await property.save();
 
@@ -109,6 +135,40 @@ export const deleteProperty = async (req: AuthenticatedRequest, res: Response) =
         await property.deleteOne();
 
         return res.json({ message: "Property deleted successfully" });
+    } catch (error) {
+        return res.status(500).json({ error });
+    }
+};
+
+export const togglePropertyLike = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const property = await Property.findById(req.params.id);
+        if (!property) {
+            return res.status(404).json({ message: "Property not found" });
+        }
+
+        const userId = new mongoose.Types.ObjectId(req.user.id);
+        const existingLikeIndex = property.likes.findIndex((id) => id.toString() === req.user!.id);
+
+        let liked = false;
+        if (existingLikeIndex >= 0) {
+            property.likes.splice(existingLikeIndex, 1);
+        } else {
+            property.likes.push(userId);
+            liked = true;
+        }
+
+        await property.save();
+
+        return res.json({
+            message: liked ? "Property liked" : "Property unliked",
+            liked,
+            likesCount: property.likes.length
+        });
     } catch (error) {
         return res.status(500).json({ error });
     }

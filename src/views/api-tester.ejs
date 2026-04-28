@@ -156,6 +156,8 @@
                 <input id="createPrice" value="7500000" />
                 <label>Address</label>
                 <input id="createAddress" value="Kolkata, India" />
+                <label>Image (optional)</label>
+                <input id="createImage" type="file" accept="image/*" />
                 <button onclick="createProperty()">POST /api/properties</button>
             </div>
 
@@ -179,6 +181,8 @@
                 <input id="updatePrice" />
                 <label>Address (optional)</label>
                 <input id="updateAddress" />
+                <label>Image (optional)</label>
+                <input id="updateImage" type="file" accept="image/*" />
                 <button onclick="updateProperty()">PUT /api/properties/:id</button>
             </div>
 
@@ -187,6 +191,13 @@
                 <label>Property ID</label>
                 <input id="deleteId" placeholder="Property id" />
                 <button onclick="deleteProperty()">DELETE /api/properties/:id</button>
+            </div>
+
+            <div class="card">
+                <h3>Like / Unlike Property</h3>
+                <label>Property ID</label>
+                <input id="likeId" placeholder="Property id" />
+                <button onclick="toggleLike()">POST /api/properties/:id/like</button>
             </div>
         </div>
 
@@ -213,20 +224,25 @@
             return baseUrlInput.value.replace(/\/$/, "") + path;
         }
 
-        function headers(authRequired = false) {
-            const h = { "Content-Type": "application/json" };
+        function headers(authRequired = false, isFormData = false) {
+            const h = {};
+            if (!isFormData) {
+                h["Content-Type"] = "application/json";
+            }
             if (authRequired && tokenInput.value.trim()) {
                 h.Authorization = "Bearer " + tokenInput.value.trim();
             }
             return h;
         }
 
-        async function sendRequest(path, method, body, authRequired = false) {
+        async function sendRequest(path, method, body, authRequired = false, isFormData = false) {
             const options = {
                 method,
-                headers: headers(authRequired)
+                headers: headers(authRequired, isFormData)
             };
-            if (body) options.body = JSON.stringify(body);
+            if (body) {
+                options.body = isFormData ? body : JSON.stringify(body);
+            }
 
             const res = await fetch(apiUrl(path), options);
             let data;
@@ -272,12 +288,16 @@
         }
 
         async function createProperty() {
-            await sendRequest("/api/properties", "POST", {
-                title: document.getElementById("createTitle").value,
-                description: document.getElementById("createDescription").value,
-                price: Number(document.getElementById("createPrice").value),
-                address: document.getElementById("createAddress").value
-            }, true);
+            const formData = new FormData();
+            formData.append("title", document.getElementById("createTitle").value);
+            formData.append("description", document.getElementById("createDescription").value);
+            formData.append("price", String(Number(document.getElementById("createPrice").value)));
+            formData.append("address", document.getElementById("createAddress").value);
+
+            const file = document.getElementById("createImage").files[0];
+            if (file) formData.append("image", file);
+
+            await sendRequest("/api/properties", "POST", formData, true, true);
         }
 
         async function getProperties() {
@@ -290,24 +310,52 @@
         }
 
         async function updateProperty() {
-            const payload = {};
+            const formData = new FormData();
+            let hasPayload = false;
             const title = document.getElementById("updateTitle").value;
             const description = document.getElementById("updateDescription").value;
             const price = document.getElementById("updatePrice").value;
             const address = document.getElementById("updateAddress").value;
+            const file = document.getElementById("updateImage").files[0];
 
-            if (title) payload.title = title;
-            if (description) payload.description = description;
-            if (price) payload.price = Number(price);
-            if (address) payload.address = address;
+            if (title) {
+                formData.append("title", title);
+                hasPayload = true;
+            }
+            if (description) {
+                formData.append("description", description);
+                hasPayload = true;
+            }
+            if (price) {
+                formData.append("price", String(Number(price)));
+                hasPayload = true;
+            }
+            if (address) {
+                formData.append("address", address);
+                hasPayload = true;
+            }
+            if (file) {
+                formData.append("image", file);
+                hasPayload = true;
+            }
 
             const id = document.getElementById("updateId").value;
-            await sendRequest("/api/properties/" + id, "PUT", payload, true);
+            if (!hasPayload) {
+                writeResponse({ message: "Add at least one field or image to update" }, 400);
+                return;
+            }
+
+            await sendRequest("/api/properties/" + id, "PUT", formData, true, true);
         }
 
         async function deleteProperty() {
             const id = document.getElementById("deleteId").value;
             await sendRequest("/api/properties/" + id, "DELETE", null, true);
+        }
+
+        async function toggleLike() {
+            const id = document.getElementById("likeId").value;
+            await sendRequest("/api/properties/" + id + "/like", "POST", null, true);
         }
     </script>
 </body>

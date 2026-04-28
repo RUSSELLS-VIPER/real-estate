@@ -6,6 +6,11 @@ export interface IProperty extends mongoose.Document {
     price: number;
     address: string;
     createdBy: mongoose.Types.ObjectId;
+    image?: {
+        data: Buffer;
+        contentType: string;
+    };
+    likes: mongoose.Types.ObjectId[];
 }
 
 const propertySchema = new mongoose.Schema<IProperty>(
@@ -14,7 +19,12 @@ const propertySchema = new mongoose.Schema<IProperty>(
         description: { type: String, required: true },
         price: { type: Number, required: true },
         address: { type: String, required: true },
-        createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }
+        createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+        image: {
+            data: Buffer,
+            contentType: String
+        },
+        likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
     },
     { timestamps: true }
 );

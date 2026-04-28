@@ -61,7 +61,8 @@ export const swaggerSpec = {
                     title: { type: "string", example: "2BHK Apartment" },
                     description: { type: "string", example: "Near metro station" },
                     price: { type: "number", example: 7500000 },
-                    address: { type: "string", example: "Kolkata, India" }
+                    address: { type: "string", example: "Kolkata, India" },
+                    image: { type: "string", format: "binary" }
                 }
             },
             UpdatePropertyRequest: {
@@ -70,7 +71,39 @@ export const swaggerSpec = {
                     title: { type: "string", example: "3BHK Apartment" },
                     description: { type: "string", example: "Renovated recently" },
                     price: { type: "number", example: 8200000 },
-                    address: { type: "string", example: "New Town, Kolkata" }
+                    address: { type: "string", example: "New Town, Kolkata" },
+                    image: { type: "string", format: "binary" }
+                }
+            },
+            Property: {
+                type: "object",
+                properties: {
+                    _id: { type: "string", example: "680f5a2d8a9850bf61d4c9f7" },
+                    title: { type: "string", example: "2BHK Apartment" },
+                    description: { type: "string", example: "Near metro station" },
+                    price: { type: "number", example: 7500000 },
+                    address: { type: "string", example: "Kolkata, India" },
+                    createdBy: {
+                        type: "object",
+                        properties: {
+                            _id: { type: "string", example: "680f59388a9850bf61d4c9ef" },
+                            name: { type: "string", example: "John Doe" },
+                            email: { type: "string", example: "john@example.com" },
+                            role: { type: "string", example: "agent" }
+                        }
+                    },
+                    image: {
+                        type: "string",
+                        nullable: true,
+                        description: "Base64 data URL for the property image"
+                    },
+                    likesCount: { type: "number", example: 2 },
+                    likes: {
+                        type: "array",
+                        items: { type: "string" }
+                    },
+                    createdAt: { type: "string", format: "date-time" },
+                    updatedAt: { type: "string", format: "date-time" }
                 }
             }
         }
@@ -140,7 +173,17 @@ export const swaggerSpec = {
                 tags: ["Property"],
                 summary: "Get all properties",
                 responses: {
-                    "200": { description: "List of properties" },
+                    "200": {
+                        description: "List of properties",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "array",
+                                    items: { $ref: "#/components/schemas/Property" }
+                                }
+                            }
+                        }
+                    },
                     "500": { description: "Server error" }
                 }
             },
@@ -151,13 +194,20 @@ export const swaggerSpec = {
                 requestBody: {
                     required: true,
                     content: {
-                        "application/json": {
+                        "multipart/form-data": {
                             schema: { $ref: "#/components/schemas/CreatePropertyRequest" }
                         }
                     }
                 },
                 responses: {
-                    "201": { description: "Property created" },
+                    "201": {
+                        description: "Property created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/Property" }
+                            }
+                        }
+                    },
                     "401": { description: "Unauthorized" },
                     "403": { description: "Forbidden" },
                     "500": { description: "Server error" }
@@ -177,7 +227,14 @@ export const swaggerSpec = {
                     }
                 ],
                 responses: {
-                    "200": { description: "Property details" },
+                    "200": {
+                        description: "Property details",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/Property" }
+                            }
+                        }
+                    },
                     "404": { description: "Property not found" },
                     "500": { description: "Server error" }
                 }
@@ -197,13 +254,20 @@ export const swaggerSpec = {
                 requestBody: {
                     required: true,
                     content: {
-                        "application/json": {
+                        "multipart/form-data": {
                             schema: { $ref: "#/components/schemas/UpdatePropertyRequest" }
                         }
                     }
                 },
                 responses: {
-                    "200": { description: "Property updated" },
+                    "200": {
+                        description: "Property updated",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/Property" }
+                            }
+                        }
+                    },
                     "401": { description: "Unauthorized" },
                     "403": { description: "Forbidden" },
                     "404": { description: "Property not found" },
@@ -226,6 +290,41 @@ export const swaggerSpec = {
                     "200": { description: "Property deleted" },
                     "401": { description: "Unauthorized" },
                     "403": { description: "Forbidden" },
+                    "404": { description: "Property not found" },
+                    "500": { description: "Server error" }
+                }
+            }
+        },
+        "/api/properties/{id}/like": {
+            post: {
+                tags: ["Property"],
+                summary: "Toggle like on property (authenticated user)",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: "path",
+                        name: "id",
+                        required: true,
+                        schema: { type: "string" }
+                    }
+                ],
+                responses: {
+                    "200": {
+                        description: "Like toggled",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        message: { type: "string", example: "Property liked" },
+                                        liked: { type: "boolean", example: true },
+                                        likesCount: { type: "number", example: 3 }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": { description: "Unauthorized" },
                     "404": { description: "Property not found" },
                     "500": { description: "Server error" }
                 }
