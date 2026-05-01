@@ -33,7 +33,7 @@ export const register = async (req: Request, res: Response) => {
             password: hashedPassword,
             role: selectedRole,
             otp,
-            otpExpiry: new Date(Date.now() + 10 * 60 * 1000) 
+            otpExpiry: new Date(Date.now() + 10 * 60 * 1000)
         });
 
         try {
@@ -123,5 +123,87 @@ export const login = async (req: Request, res: Response) => {
     } catch (error) {
         const message = error instanceof Error ? error.message : "Internal Server Error";
         res.status(500).json({ message });
+    }
+};
+
+
+
+export const forgotPassword = async (req: Request, res: Response) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // 1. Generate 6-digit OTP
+        const otp = generateOTP();
+        const otpExpiry = new Date(Date.now() + 10 * 60000); // 10 minutes from now
+
+
+        // Save OTP directly to the User document
+        user.otp = otp;
+        user.otpExpiry = otpExpiry;
+        await user.save();
+
+        // 3. Attempt to send the email
+        try {
+            await sendEmail(email, "Password Reset OTP", `Your OTP for resetting your password is: ${otp}`);
+        } catch (mailError: any) {
+            return res.status(400).json({
+                message: "Could not send email",
+                error: mailError?.message || "Unknown email error"
+            });
+        }
+
+        return res.status(200).json(
+            {
+                message: "OTP sent to email",
+                email: email,
+                // otp: otp,
+                // expiresAt: new Date(Date.now() + 10 * 60000)
+            }
+        );
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Internal Server Error";
+        return res.status(500).json({ message });
+    }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+    try {
+        const { email, otp, newPassword } =  req.body;
+
+        if (!email || !otp || !newPassword) {
+            return res.status(400).json({ message: "All fields are required." });
+        }
+
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        // 2. heck if OTP exists and matches and Check if OTP has expired
+        if (!user.otp || user.otp !== otp || !user.otpExpiry || user.otpExpiry < new Date()) {
+            return res.status(400).json({ message: "Invalid or expired OTP" });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+
+        // 1. Modify the object in memory
+        user.password = hashedPassword;
+        user.otp = undefined;       // Setting to undefined tells Mongoose to $unset this
+        user.otpExpiry = undefined;
+        
+        await user.save();
+
+        return res.status(200).json({ message: "Password reset successful. You can now login." });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Internal Server Error";
+        return res.status(500).json({ message });
     }
 };

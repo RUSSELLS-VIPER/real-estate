@@ -1,3 +1,5 @@
+import { forgotPassword } from "../controllers/auth.controller";
+
 export const swaggerSpec = {
     openapi: "3.0.3",
     info: {
@@ -53,6 +55,23 @@ export const swaggerSpec = {
                 properties: {
                     email: { type: "string", format: "email", example: "john@example.com" },
                     password: { type: "string", example: "123456" }
+                }
+            },
+             forgotPasswordRequest: {
+                type: "object",
+                required: ["email"],
+                properties: {
+                    email: { type: "string", format: "email", example: "john@example.com" },
+                }
+            },
+
+             resetPasswordRequest: {
+                type: "object",
+                required: ["email","otp","newPassword"],
+                properties: {
+                    email: { type: "string", format: "email", example: "john@example.com" },
+                    otp: { type: "string", example: "123456" },
+                    newPassword: { type: "string", example: "123456" }
                 }
             },
             UpdateProfileRequest: {
@@ -151,6 +170,46 @@ export const swaggerSpec = {
                 responses: {
                     "200": { description: "Login successful" },
                     "400": { description: "Invalid credentials / unverified email" },
+                    "404": { description: "User not found" },
+                    "500": { description: "Server error" }
+                }
+            }
+        },
+        "/api/auth/forgot-password": {
+            post: {
+                tags: ["Auth"],
+                summary: "Forgot Password user/agent/admin",
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/forgotPasswordRequest" }
+                        }
+                    }
+                },
+                responses: {
+                    "200": { description: "OTP sent to email" },
+                    "404": { description: "User not found" },
+                    "400": { description: "Could not send email" },
+                    "500": { description: "Server error" }
+                }
+            }
+        },
+        "/api/auth/reset-password": {
+            post: {
+                tags: ["Auth"],
+                summary: "Reset password using otp , email and newpassword",
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: { $ref: "#/components/schemas/resetPasswordRequest" }
+                        }
+                    }
+                },
+                responses: {
+                    "200": { description: "Password reset successful. You can now login." },
+                    "400": { description: "Invalid or expired OTP" },
                     "404": { description: "User not found" },
                     "500": { description: "Server error" }
                 }
