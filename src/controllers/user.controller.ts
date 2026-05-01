@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import User, { Role } from "../models/user.model";
 import Property from "../models/property.model";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
+import { logError, toErrorResponse } from "../utils/error";
 
 /**
  * @desc Get User Profile
@@ -16,7 +17,8 @@ export const getUserProfile = async (req: AuthenticatedRequest, res: Response) =
         }
         return res.json(user);
     } catch (error) {
-        return res.status(500).json({ error });
+        logError("getUserProfile", error);
+        return res.status(500).json(toErrorResponse(error));
     }
 };
 
@@ -60,7 +62,8 @@ export const updateUserProfile = async (req: AuthenticatedRequest, res: Response
             }
         });
     } catch (error) {
-        return res.status(500).json({ error });
+        logError("updateUserProfile", error);
+        return res.status(500).json(toErrorResponse(error));
     }
 };
 
@@ -94,7 +97,8 @@ export const toggleFavoriteProperty = async (req: AuthenticatedRequest, res: Res
             return res.json({ message: "Property removed from favorites", isLiked: false });
         }
     } catch (error) {
-        return res.status(500).json({ error });
+        logError("toggleFavoriteProperty", error);
+        return res.status(500).json(toErrorResponse(error));
     }
 };
 
@@ -117,7 +121,8 @@ export const getUserFavorites = async (req: AuthenticatedRequest, res: Response)
 
         return res.json(favorites);
     } catch (error) {
-        return res.status(500).json({ error });
+        logError("getUserFavorites", error);
+        return res.status(500).json(toErrorResponse(error));
     }
 };
 

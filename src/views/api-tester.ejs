@@ -88,6 +88,12 @@
             grid-template-columns: 1fr 1fr;
             gap: 10px;
         }
+        .small {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: -4px;
+            margin-bottom: 8px;
+        }
     </style>
 </head>
 <body>
@@ -105,6 +111,16 @@
                 <div>
                     <label for="token">JWT Token</label>
                     <input id="token" placeholder="Paste token or login to auto-fill" />
+                </div>
+            </div>
+            <div class="row">
+                <div>
+                    <label for="currentUserId">Current User ID</label>
+                    <input id="currentUserId" placeholder="Auto-filled after login" />
+                </div>
+                <div>
+                    <label for="commonPropertyId">Common Property ID</label>
+                    <input id="commonPropertyId" placeholder="Use for like/favorite/profile tests" />
                 </div>
             </div>
             <button id="saveToken">Save Token</button>
@@ -156,6 +172,8 @@
                 <input id="createPrice" value="7500000" />
                 <label>Address</label>
                 <input id="createAddress" value="Kolkata, India" />
+                <label>Image (optional)</label>
+                <input id="createImage" type="file" accept="image/*" />
                 <button onclick="createProperty()">POST /api/properties</button>
             </div>
 
@@ -164,6 +182,7 @@
                 <button onclick="getProperties()">GET /api/properties</button>
                 <label>Property ID</label>
                 <input id="propertyId" placeholder="Property id for get/update/delete" />
+                <div class="small">Tip: you can reuse Common Property ID above</div>
                 <button onclick="getPropertyById()">GET /api/properties/:id</button>
             </div>
 
@@ -179,6 +198,8 @@
                 <input id="updatePrice" />
                 <label>Address (optional)</label>
                 <input id="updateAddress" />
+                <label>Image (optional)</label>
+                <input id="updateImage" type="file" accept="image/*" />
                 <button onclick="updateProperty()">PUT /api/properties/:id</button>
             </div>
 
@@ -187,6 +208,43 @@
                 <label>Property ID</label>
                 <input id="deleteId" placeholder="Property id" />
                 <button onclick="deleteProperty()">DELETE /api/properties/:id</button>
+            </div>
+
+            <div class="card">
+                <h3>Like / Unlike Property</h3>
+                <label>Property ID</label>
+                <input id="likeId" placeholder="Property id" />
+                <button onclick="toggleLike()">POST /api/properties/:id/like</button>
+            </div>
+
+            <div class="card">
+                <h3>Get User Profile</h3>
+                <label>User ID</label>
+                <input id="profileUserId" placeholder="User id (or Current User ID)" />
+                <button onclick="getUserProfile()">GET /api/users/profile/:id</button>
+            </div>
+
+            <div class="card">
+                <h3>Update Profile</h3>
+                <label>Name (optional)</label>
+                <input id="profileName" placeholder="New name" />
+                <label>Email (optional)</label>
+                <input id="profileEmail" placeholder="New email" />
+                <label>Profile Image (optional)</label>
+                <input id="profileImage" type="file" accept="image/*" />
+                <button onclick="updateUserProfile()">PUT /api/users/profile/update</button>
+            </div>
+
+            <div class="card">
+                <h3>Toggle Favorite Property</h3>
+                <label>Property ID</label>
+                <input id="favoritePropertyId" placeholder="Property id" />
+                <button onclick="toggleFavorite()">POST /api/users/favorites/:propertyId</button>
+            </div>
+
+            <div class="card">
+                <h3>Get My Favorites</h3>
+                <button onclick="getMyFavorites()">GET /api/users/favorites/my-list</button>
             </div>
         </div>
 
@@ -197,15 +255,19 @@
         const tokenInput = document.getElementById("token");
         const baseUrlInput = document.getElementById("baseUrl");
         const responseBox = document.getElementById("response");
+        const currentUserIdInput = document.getElementById("currentUserId");
+        const commonPropertyIdInput = document.getElementById("commonPropertyId");
 
         if (!baseUrlInput.value) {
             baseUrlInput.value = window.location.origin;
         }
 
         tokenInput.value = localStorage.getItem("api_tester_token") || "";
+        currentUserIdInput.value = localStorage.getItem("api_tester_user_id") || "";
 
         document.getElementById("saveToken").addEventListener("click", () => {
             localStorage.setItem("api_tester_token", tokenInput.value.trim());
+            localStorage.setItem("api_tester_user_id", currentUserIdInput.value.trim());
             writeResponse({ message: "Token saved in localStorage" }, 200);
         });
 
@@ -213,20 +275,25 @@
             return baseUrlInput.value.replace(/\/$/, "") + path;
         }
 
-        function headers(authRequired = false) {
-            const h = { "Content-Type": "application/json" };
+        function headers(authRequired = false, isFormData = false) {
+            const h = {};
+            if (!isFormData) {
+                h["Content-Type"] = "application/json";
+            }
             if (authRequired && tokenInput.value.trim()) {
                 h.Authorization = "Bearer " + tokenInput.value.trim();
             }
             return h;
         }
 
-        async function sendRequest(path, method, body, authRequired = false) {
+        async function sendRequest(path, method, body, authRequired = false, isFormData = false) {
             const options = {
                 method,
-                headers: headers(authRequired)
+                headers: headers(authRequired, isFormData)
             };
-            if (body) options.body = JSON.stringify(body);
+            if (body) {
+                options.body = isFormData ? body : JSON.stringify(body);
+            }
 
             const res = await fetch(apiUrl(path), options);
             let data;
@@ -268,16 +335,24 @@
             if (result.status === 200 && result.data && result.data.token) {
                 tokenInput.value = result.data.token;
                 localStorage.setItem("api_tester_token", result.data.token);
+                if (result.data.user && result.data.user.id) {
+                    currentUserIdInput.value = result.data.user.id;
+                    localStorage.setItem("api_tester_user_id", result.data.user.id);
+                }
             }
         }
 
         async function createProperty() {
-            await sendRequest("/api/properties", "POST", {
-                title: document.getElementById("createTitle").value,
-                description: document.getElementById("createDescription").value,
-                price: Number(document.getElementById("createPrice").value),
-                address: document.getElementById("createAddress").value
-            }, true);
+            const formData = new FormData();
+            formData.append("title", document.getElementById("createTitle").value);
+            formData.append("description", document.getElementById("createDescription").value);
+            formData.append("price", String(Number(document.getElementById("createPrice").value)));
+            formData.append("address", document.getElementById("createAddress").value);
+
+            const file = document.getElementById("createImage").files[0];
+            if (file) formData.append("image", file);
+
+            await sendRequest("/api/properties", "POST", formData, true, true);
         }
 
         async function getProperties() {
@@ -290,24 +365,95 @@
         }
 
         async function updateProperty() {
-            const payload = {};
+            const formData = new FormData();
+            let hasPayload = false;
             const title = document.getElementById("updateTitle").value;
             const description = document.getElementById("updateDescription").value;
             const price = document.getElementById("updatePrice").value;
             const address = document.getElementById("updateAddress").value;
+            const file = document.getElementById("updateImage").files[0];
 
-            if (title) payload.title = title;
-            if (description) payload.description = description;
-            if (price) payload.price = Number(price);
-            if (address) payload.address = address;
+            if (title) {
+                formData.append("title", title);
+                hasPayload = true;
+            }
+            if (description) {
+                formData.append("description", description);
+                hasPayload = true;
+            }
+            if (price) {
+                formData.append("price", String(Number(price)));
+                hasPayload = true;
+            }
+            if (address) {
+                formData.append("address", address);
+                hasPayload = true;
+            }
+            if (file) {
+                formData.append("image", file);
+                hasPayload = true;
+            }
 
             const id = document.getElementById("updateId").value;
-            await sendRequest("/api/properties/" + id, "PUT", payload, true);
+            if (!hasPayload) {
+                writeResponse({ message: "Add at least one field or image to update" }, 400);
+                return;
+            }
+
+            await sendRequest("/api/properties/" + id, "PUT", formData, true, true);
         }
 
         async function deleteProperty() {
             const id = document.getElementById("deleteId").value;
             await sendRequest("/api/properties/" + id, "DELETE", null, true);
+        }
+
+        async function toggleLike() {
+            const id = document.getElementById("likeId").value || commonPropertyIdInput.value;
+            await sendRequest("/api/properties/" + id + "/like", "POST", null, true);
+        }
+
+        async function getUserProfile() {
+            const id = document.getElementById("profileUserId").value || currentUserIdInput.value;
+            await sendRequest("/api/users/profile/" + id, "GET", null, true);
+        }
+
+        async function updateUserProfile() {
+            const formData = new FormData();
+            let hasPayload = false;
+
+            const name = document.getElementById("profileName").value;
+            const email = document.getElementById("profileEmail").value;
+            const file = document.getElementById("profileImage").files[0];
+
+            if (name) {
+                formData.append("name", name);
+                hasPayload = true;
+            }
+            if (email) {
+                formData.append("email", email);
+                hasPayload = true;
+            }
+            if (file) {
+                formData.append("image", file);
+                hasPayload = true;
+            }
+
+            if (!hasPayload) {
+                writeResponse({ message: "Add at least one field or profile image to update" }, 400);
+                return;
+            }
+
+            await sendRequest("/api/users/profile/update", "PUT", formData, true, true);
+        }
+
+        async function toggleFavorite() {
+            const propertyId = document.getElementById("favoritePropertyId").value || commonPropertyIdInput.value;
+            await sendRequest("/api/users/favorites/" + propertyId, "POST", null, true);
+        }
+
+        async function getMyFavorites() {
+            await sendRequest("/api/users/favorites/my-list", "GET", null, true);
         }
     </script>
 </body>
