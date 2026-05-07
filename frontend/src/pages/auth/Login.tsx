@@ -135,7 +135,7 @@ const Login = () => {
                 <div className="flex-1 h-px bg-gray-100"></div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 mb-4">
+              {/* <div className="flex flex-col sm:flex-row gap-4 mb-4">
                 <button
                   type="button"
                   className="flex-1 flex items-center justify-center gap-3 py-3 border border-gray-200 bg-white rounded-md transition-all duration-300 hover:border-[#FCA311] hover:bg-gray-50 hover:shadow-sm active:scale-[0.98]"
@@ -166,7 +166,7 @@ const Login = () => {
                     Facebook
                   </span>
                 </button>
-              </div>
+              </div> */}
 
               <div className="text-center mt-2">
                 <p className="text-sm text-gray-600">
